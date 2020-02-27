@@ -1,14 +1,14 @@
 read -p "Enter Stack Name: " stack_name
 read -p "Enter VPC Name: " vpc_name
-read -p "Enter AWS region Name: " aws_name
-read -p "enter VPC CidrBlock - format 10.0.0.0/16: " vpc_cidr
-read -p "enter subnet CidrBlock - format 10.0.0.0/16: " subnet_cidr
+read -p "Enter AWS region: " aws_name
+read -p "Enter VPC CidrBlock - format 10.0.0.0/16: " vpc_cidr
+read -p "Enter subnet CidrBlock - format 10.0.0.0/16: " subnet_cidr
 read -p "Enter AMI Image Name: " ami_name
-read -p "Enter key Name: " key_name
-read -p "enter profile name: " profile
+read -p "Enter Key Name: " key_name
+read -p "Enter Profile: " profile
 
 # Creating stacks
-echo "Creating Network Stack"
+echo "Creating Stack"
 
 # Executing the cloudformation network creation command
 aws cloudformation create-stack \
@@ -26,4 +26,4 @@ ParameterKey=keyname,ParameterValue=${key_name} \
 --profile ${profile}
 
 # Waiting for the stack to get created
-echo "Command Executed Succefully"
+echo "Stack created successfully"
