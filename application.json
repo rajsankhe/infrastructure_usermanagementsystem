@@ -63,7 +63,7 @@
       "myBucketNameForWebApp":{
          "Description":"Bucket name for storing application",
          "Type":"String",
-         "Default":"codedeploy.tejsankhe.me"
+         "Default":"codedeploy.rajsankhe.me"
       },
       "ec2InstanceType":{
          "Description":"InstanceType for EC2",
