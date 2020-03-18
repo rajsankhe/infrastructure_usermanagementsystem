@@ -63,7 +63,7 @@
       "myBucketNameForWebApp":{
          "Description":"Bucket name for storing application",
          "Type":"String",
-         "Default":"codedeploy.tejsankhe.me"
+         "Default":"codedeploy.rajsankhe.me"
       },
       "ec2InstanceType":{
          "Description":"InstanceType for EC2",
@@ -495,10 +495,97 @@
             }
          }
       },
+      "CodeDeployEC2S3":{
+         "Type":"AWS::IAM::ManagedPolicy",
+         "Properties":{
+            "ManagedPolicyName":"CodeDeploy-EC2-S3",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Action":[
+                        "s3:Get*",
+                        "s3:List*"
+                     ],
+                     "Effect":"Allow",
+                     "Resource":[
+                        {
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "arn:aws:s3:::",
+                                 {
+                                    "Ref":"myBucketNameForWebApp"
+                                 },
+                                 "/*"
+                              ]
+                           ]
+                        }
+                     ]
+                  }
+               ]
+            }
+         }
+      },
+      "AccessAttachmentToS3Bucket":{
+         "Type":"AWS::IAM::ManagedPolicy",
+         "Properties":{
+            "ManagedPolicyName":"Access-Attachment-To-S3-Bucket",
+            "Description":"Policy for uploading attachments into S3",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Action":[
+                        "s3:Get*",
+                        "s3:List*",
+                        "s3:Delete*",
+                        "s3:Put*"
+                     ],
+                     "Effect":"Allow",
+                     "Resource":[
+                        {
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "arn:aws:s3:::",
+                                 {
+                                    "Ref":"myS3Bucket"
+                                 }
+                              ]
+                           ]
+                        },
+                        {
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "arn:aws:s3:::",
+                                 {
+                                    "Ref":"myS3Bucket"
+                                 },
+                                 "/*"
+                              ]
+                           ]
+                        }
+                     ]
+                  }
+               ]
+            }
+         }
+      },
       "CodeDeployEC2ServiceRole":{
          "Type":"AWS::IAM::Role",
          "Properties":{
             "RoleName":"CodeDeployEC2ServiceRole",
+            "ManagedPolicyArns":[
+               {
+                  "Ref":"CodeDeployEC2S3"
+               },
+               {
+                  "Ref":"AccessAttachmentToS3Bucket"
+               },
+               "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+            ],
             "AssumeRolePolicyDocument":{
                "Version":"2012-10-17",
                "Statement":[
@@ -514,80 +601,7 @@
                      ]
                   }
                ]
-            },
-            "Path":"/",
-            "Policies":[
-               {
-                  "PolicyName":"WebAppS3",
-                  "PolicyDocument":{
-                     "Version":"2012-10-17",
-                     "Statement":[
-                        {
-                           "Effect":"Allow",
-                           "Action":[
-                              "s3:GetObject",
-                              "s3:DeleteObject",
-                              "s3:PutObject"
-                           ],
-                           "Resource":[
-                              {
-                                 "Fn::Join":[
-                                    "",
-                                    [
-                                       "arn:aws:s3:::",
-                                       {
-                                          "Ref":"myS3Bucket"
-                                       }
-                                    ]
-                                 ]
-                              },
-                              {
-                                 "Fn::Join":[
-                                    "",
-                                    [
-                                       "arn:aws:s3:::",
-                                       {
-                                          "Ref":"myS3Bucket"
-                                       },
-                                       "/*"
-                                    ]
-                                 ]
-                              }
-                           ]
-                        }
-                     ]
-                  }
-               },
-               {
-                  "PolicyName":"CodeDeploy-EC2-S3",
-                  "PolicyDocument":{
-                     "Version":"2012-10-17",
-                     "Statement":[
-                        {
-                           "Action":[
-                              "s3:Get*",
-                              "s3:List*"
-                           ],
-                           "Effect":"Allow",
-                           "Resource":[
-                              {
-                                 "Fn::Join":[
-                                    "",
-                                    [
-                                       "arn:aws:s3:::",
-                                       {
-                                          "Ref":"myBucketNameForWebApp"
-                                       },
-                                       "/*"
-                                    ]
-                                 ]
-                              }
-                           ]
-                        }
-                     ]
-                  }
-               }
-            ]
+            }
          }
       },
       "myEC2InstanceProfile":{
@@ -664,7 +678,7 @@
                   {
                      "Effect":"Allow",
                      "Action":[
-						"s3:Get*",
+                        "s3:Get*",
                         "s3:List*",
                         "s3:PutObject"
                      ],
