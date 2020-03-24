@@ -104,6 +104,18 @@
          "Description":"RDS Name Identifier",
          "Type":"String",
          "Default":"csye6225-spring2020"
+      },
+      "HostedZoneId":{
+         "Type":"String",
+         "Default":"Z30W962Y6PIFEO"
+      },
+      "DomainName":{
+         "Type":"String",
+         "Default":"prod.rajsankhe.me"
+      },
+      "VolumeSzie":{
+         "Type":"String",
+         "Default":"20"
       }
    },
    "Resources":{
@@ -850,6 +862,23 @@
             "DeploymentGroupName":{
                "Ref":"DEPGROUPNAME"
             },
+            "AutoScalingGroups":[
+               {
+                  "Ref":"WebServerGroup"
+               }
+            ],
+            "LoadBalancerInfo":{
+               "TargetGroupInfoList":[
+                  {
+                     "Name":{
+                        "Fn::GetAtt":[
+                           "TargetGroup",
+                           "TargetGroupName"
+                        ]
+                     }
+                  }
+               ]
+            },
             "DeploymentStyle":{
                "DeploymentType":"IN_PLACE",
                "DeploymentOption":"WITHOUT_TRAFFIC_CONTROL"
@@ -876,91 +905,37 @@
             }
          }
       },
-      "myDBSubnetGroup":{
-         "Type":"AWS::RDS::DBSubnetGroup",
+      "MyLoadBalancer":{
+         "Type":"AWS::ElasticLoadBalancingV2::LoadBalancer",
          "Properties":{
-            "DBSubnetGroupDescription":"DBSubnet Group for RDS",
-            "SubnetIds":[
+            "IpAddressType":"ipv4",
+            "SecurityGroups":[
                {
-                  "Ref":"myPublicSubnet1"
-               },
+                  "Ref":"applicationSecurityGroup"
+               }
+            ],
+            "Subnets":[
                {
                   "Ref":"myPublicSubnet2"
                },
                {
                   "Ref":"myPublicSubnet3"
                }
-            ]
-         }
-      },
-      "myRDS":{
-         "Type":"AWS::RDS::DBInstance",
-         "Properties":{
-            "Engine":"Postgres",
-            "EngineVersion":"10.6",
-            "DBInstanceClass":"db.t3.micro",
-            "AllocatedStorage":"10",
-            "MultiAZ":false,
-            "DBInstanceIdentifier":{
-               "Ref":"dbIdentifier"
-            },
-            "MasterUsername":{
-               "Ref":"dbUserName"
-            },
-            "MasterUserPassword":{
-               "Ref":"dbuserPassword"
-            },
-            "PubliclyAccessible":false,
-            "DBName":{
-               "Ref":"dbName"
-            },
-            "DBSubnetGroupName":{
-               "Ref":"myDBSubnetGroup"
-            },
-            "VPCSecurityGroups":[
+            ],
+            "Name":"MyLoadBalancer",
+            "Scheme":"internet-facing",
+            "Tags":[
                {
-                  "Ref":"databaseSecurityGroup"
-               }
-            ]
-         }
-      },
-      "myEC2":{
-         "Type":"AWS::EC2::Instance",
-         "Properties":{
-            "ImageId":{
-               "Ref":"AMI"
-            },
-            "InstanceType":{
-               "Ref":"ec2InstanceType"
-            },
-            "BlockDeviceMappings":[
-               {
-                  "DeviceName":"/dev/sda1",
-                  "Ebs":{
-                     "VolumeSize":"20",
-                     "VolumeType":"gp2",
-                     "DeleteOnTermination":true
-                  }
+                  "Key":"Name",
+                  "Value":"Loadbalancer"
                }
             ],
-            "KeyName":{
-               "Ref":"keyname"
-            },
-            "NetworkInterfaces":[
-               {
-                  "AssociatePublicIpAddress":true,
-                  "DeviceIndex":"0",
-                  "DeleteOnTermination":true,
-                  "SubnetId":{
-                     "Ref":"myPublicSubnet3"
-                  },
-                  "GroupSet":[
-                     {
-                        "Ref":"applicationSecurityGroup"
-                     }
-                  ]
-               }
-            ],
+            "Type":"application"
+         }
+      },
+      "LaunchConfiguration":{
+         "Type":"AWS::AutoScaling::LaunchConfiguration",
+         "Properties":{
             "UserData":{
                "Fn::Base64":{
                   "Fn::Join":[
@@ -1012,13 +987,253 @@
                   ]
                }
             },
+            "ImageId":{
+               "Ref":"AMI"
+            },
+            "KeyName":{
+               "Ref":"keyname"
+            },
+            "SecurityGroups":[
+               {
+                  "Ref":"applicationSecurityGroup"
+               }
+            ],
+            "LaunchConfigurationName":"LaunchConfiguration",
+            "InstanceType":"t2.micro",
+            "AssociatePublicIpAddress":true,
+            "BlockDeviceMappings":[
+               {
+                  "DeviceName":"/dev/sdm",
+                  "Ebs":{
+                     "VolumeType":"gp2",
+                     "DeleteOnTermination":"true",
+                     "VolumeSize":{
+                        "Ref":"VolumeSzie"
+                     }
+                  }
+               }
+            ],
             "IamInstanceProfile":{
                "Ref":"myEC2InstanceProfile"
+            }
+         }
+      },
+      "TargetGroup":{
+         "Type":"AWS::ElasticLoadBalancingV2::TargetGroup",
+         "Properties":{
+            "HealthCheckIntervalSeconds":30,
+            "HealthCheckPath":"/",
+            "HealthCheckPort":"8080",
+            "HealthCheckProtocol":"HTTP",
+            "HealthCheckTimeoutSeconds":7,
+            "HealthyThresholdCount":3,
+            "Name":"TargetGroup",
+            "Port":8080,
+            "Protocol":"HTTP",
+            "TargetType":"instance",
+            "UnhealthyThresholdCount":5,
+            "VpcId":{
+               "Ref":"myVPC"
             },
+            "Matcher":{
+               "HttpCode":"401"
+            }
+         }
+      },
+      "WebServerGroup":{
+         "Type":"AWS::AutoScaling::AutoScalingGroup",
+         "Properties":{
+            "LaunchConfigurationName":{
+               "Ref":"LaunchConfiguration"
+            },
+            "MinSize":"2",
+            "MaxSize":"5",
+            "TargetGroupARNs":[
+               {
+                  "Ref":"TargetGroup"
+               }
+            ],
             "Tags":[
                {
                   "Key":"Name",
-                  "Value":"EC2Webapplication"
+                  "Value":"EC2Webapplication",
+                  "PropagateAtLaunch":"True"
+               }
+            ],
+            "DesiredCapacity":"2",
+            "Cooldown":"60",
+            "VPCZoneIdentifier":[
+               {
+                  "Ref":"myPublicSubnet2"
+               },
+               {
+                  "Ref":"myPublicSubnet3"
+               }
+            ]
+         }
+      },
+      "WebServerScaleUpPolicy":{
+         "Type":"AWS::AutoScaling::ScalingPolicy",
+         "Properties":{
+            "AdjustmentType":"ChangeInCapacity",
+            "AutoScalingGroupName":{
+               "Ref":"WebServerGroup"
+            },
+            "Cooldown":"60",
+            "ScalingAdjustment":"1"
+         }
+      },
+      "WebServerScaleDownPolicy":{
+         "Type":"AWS::AutoScaling::ScalingPolicy",
+         "Properties":{
+            "AdjustmentType":"ChangeInCapacity",
+            "AutoScalingGroupName":{
+               "Ref":"WebServerGroup"
+            },
+            "Cooldown":"60",
+            "ScalingAdjustment":"-1"
+         }
+      },
+      "CPUAlarmHigh":{
+         "Type":"AWS::CloudWatch::Alarm",
+         "Properties":{
+            "AlarmDescription":"Scale-up if CPU > 90% for 10 minutes",
+            "MetricName":"CPUUtilization",
+            "Namespace":"AWS/EC2",
+            "Statistic":"Average",
+            "Period":"300",
+            "EvaluationPeriods":"2",
+            "Threshold":"90",
+            "AlarmActions":[
+               {
+                  "Ref":"WebServerScaleUpPolicy"
+               }
+            ],
+            "Dimensions":[
+               {
+                  "Name":"AutoScalingGroupName",
+                  "Value":{
+                     "Ref":"WebServerGroup"
+                  }
+               }
+            ],
+            "ComparisonOperator":"GreaterThanThreshold"
+         }
+      },
+      "CPUAlarmLow":{
+         "Type":"AWS::CloudWatch::Alarm",
+         "Properties":{
+            "AlarmDescription":"Scale-down if CPU < 70% for 10 minutes",
+            "MetricName":"CPUUtilization",
+            "Namespace":"AWS/EC2",
+            "Statistic":"Average",
+            "Period":"300",
+            "EvaluationPeriods":"2",
+            "Threshold":"70",
+            "AlarmActions":[
+               {
+                  "Ref":"WebServerScaleDownPolicy"
+               }
+            ],
+            "Dimensions":[
+               {
+                  "Name":"AutoScalingGroupName",
+                  "Value":{
+                     "Ref":"WebServerGroup"
+                  }
+               }
+            ],
+            "ComparisonOperator":"LessThanThreshold"
+         }
+      },
+      "DNSRecordSet":{
+         "Type":"AWS::Route53::RecordSet",
+         "Properties":{
+            "Name":{
+               "Ref":"DomainName"
+            },
+            "HostedZoneId":{
+               "Ref":"HostedZoneId"
+            },
+            "AliasTarget":{
+               "HostedZoneId":{
+                  "Fn::GetAtt":[
+                     "MyLoadBalancer",
+                     "CanonicalHostedZoneID"
+                  ]
+               },
+               "DNSName":{
+                  "Fn::GetAtt":[
+                     "MyLoadBalancer",
+                     "DNSName"
+                  ]
+               }
+            },
+            "Type":"A"
+         }
+      },
+      "HttpListener":{
+         "Type":"AWS::ElasticLoadBalancingV2::Listener",
+         "Properties":{
+            "DefaultActions":[
+               {
+                  "Type":"forward",
+                  "TargetGroupArn":{
+                     "Ref":"TargetGroup"
+                  }
+               }
+            ],
+            "LoadBalancerArn":{
+               "Ref":"MyLoadBalancer"
+            },
+            "Port":80,
+            "Protocol":"HTTP"
+         }
+      },
+      "myDBSubnetGroup":{
+         "Type":"AWS::RDS::DBSubnetGroup",
+         "Properties":{
+            "DBSubnetGroupDescription":"DBSubnet Group for RDS",
+            "SubnetIds":[
+               {
+                  "Ref":"myPublicSubnet1"
+               },
+               {
+                  "Ref":"myPublicSubnet2"
+               },
+               {
+                  "Ref":"myPublicSubnet3"
+               }
+            ]
+         }
+      },
+      "myRDS":{
+         "Type":"AWS::RDS::DBInstance",
+         "Properties":{
+            "Engine":"Postgres",
+            "EngineVersion":"10.6",
+            "DBInstanceClass":"db.t3.micro",
+            "AllocatedStorage":"10",
+            "MultiAZ":false,
+            "DBInstanceIdentifier":{
+               "Ref":"dbIdentifier"
+            },
+            "MasterUsername":{
+               "Ref":"dbUserName"
+            },
+            "MasterUserPassword":{
+               "Ref":"dbuserPassword"
+            },
+            "PubliclyAccessible":false,
+            "DBName":{
+               "Ref":"dbName"
+            },
+            "DBSubnetGroupName":{
+               "Ref":"myDBSubnetGroup"
+            },
+            "VPCSecurityGroups":[
+               {
+                  "Ref":"databaseSecurityGroup"
                }
             ]
          }
