@@ -415,27 +415,20 @@
             "SecurityGroupIngress":[
                {
                   "IpProtocol":"tcp",
-                  "FromPort":"22",
-                  "ToPort":"22",
+                  "FromPort":22,
+                  "ToPort":22,
                   "CidrIp":"0.0.0.0/0"
                },
                {
                   "IpProtocol":"tcp",
-                  "FromPort":"80",
-                  "ToPort":"80",
-                  "CidrIp":"0.0.0.0/0"
-               },
-               {
-                  "IpProtocol":"tcp",
-                  "FromPort":"443",
-                  "ToPort":"443",
-                  "CidrIp":"0.0.0.0/0"
-               },
-               {
-                  "IpProtocol":"tcp",
-                  "FromPort":"8080",
-                  "ToPort":"8080",
-                  "CidrIp":"0.0.0.0/0"
+                  "FromPort":8080,
+                  "ToPort":8080,
+                  "SourceSecurityGroupId": {
+                     "Fn::GetAtt": [
+                        "loadbalancerSecurityGroup",
+                        "GroupId"
+                     ]
+                  }
                }
             ],
             "Tags":[
@@ -449,6 +442,42 @@
             "VpcId":{
                "Ref":"myVPC"
             }
+         }
+      },
+      "loadbalancerSecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup",
+         "Properties": {
+            "GroupName": "LoadBalancer-Security-Group",
+            "GroupDescription": "Enable HTTPS via port 8080",
+            "VpcId": {
+               "Ref": "myVPC"
+            },
+            "SecurityGroupIngress": [
+               {
+                  "IpProtocol": "tcp",
+                  "FromPort": 80,
+                  "ToPort": 80,
+                  "CidrIp": "0.0.0.0/0"
+               },
+               {
+                  "IpProtocol": "tcp",
+                  "FromPort": 443,
+                  "ToPort": 443,
+                  "CidrIp": "0.0.0.0/0"
+               },
+               {
+                  "IpProtocol": "tcp",
+                  "FromPort": 8080,
+                  "ToPort": 8080,
+                  "CidrIp": "0.0.0.0/0"
+               },
+               {
+                  "IpProtocol": "tcp",
+                  "FromPort": 22,
+                  "ToPort": 22,
+                  "CidrIp": "0.0.0.0/0"
+               }
+            ]
          }
       },
       "databaseSecurityGroup":{
@@ -911,7 +940,7 @@
             "IpAddressType":"ipv4",
             "SecurityGroups":[
                {
-                  "Ref":"applicationSecurityGroup"
+                  "Ref":"loadbalancerSecurityGroup"
                }
             ],
             "Subnets":[
@@ -1103,7 +1132,7 @@
             "Statistic":"Average",
             "Period":"300",
             "EvaluationPeriods":"2",
-            "Threshold":"90",
+            "Threshold":"5",
             "AlarmActions":[
                {
                   "Ref":"WebServerScaleUpPolicy"
@@ -1129,7 +1158,7 @@
             "Statistic":"Average",
             "Period":"300",
             "EvaluationPeriods":"2",
-            "Threshold":"70",
+            "Threshold":"3",
             "AlarmActions":[
                {
                   "Ref":"WebServerScaleDownPolicy"
