@@ -1314,10 +1314,36 @@
             }
          }
       },
+      "DynamoDB":{
+         "Type":"AWS::DynamoDB::Table",
+         "Properties":{
+            "KeySchema":[
+               {
+                  "AttributeName":"EmailID",
+                  "KeyType":"HASH"
+               }
+            ],
+            "AttributeDefinitions":[
+               {
+                  "AttributeName":"EmailID",
+                  "AttributeType":"S"
+               }
+            ],
+            "ProvisionedThroughput":{
+               "ReadCapacityUnits":"5",
+               "WriteCapacityUnits":"5"
+            },
+            "TableName":"EmailTable",
+            "TimeToLiveSpecification":{
+               "AttributeName":"ExpirationTime",
+               "Enabled":true
+            }
+         }
+      },
       "DueBillsLambdaFunction":{
          "Type":"AWS::Lambda::Function",
          "Properties":{
-            "Handler":"password_reset.password_reset",
+            "Handler":"LamdaBillDue.BillDue.handleRequest",
             "Role":{
                "Fn::GetAtt":[
                   "LambdaExecutionRole",
@@ -1328,10 +1354,15 @@
                "S3Bucket":{
                   "Ref":"myBucketNameForWebApp"
                },
-               "S3Key":"cloud-ninja-lambda.zip"
+               "S3Key":"BillDue-0.0.1-SNAPSHOT.jar"
             },
             "Runtime":"java8",
-            "FunctionName":"dueBillSendEmail"
+            "FunctionName":"dueBillSendEmail",
+            "Environment" : { 
+            "Variables" : {
+               "DomainName" : { "Ref" : "DomainName" }
+            }
+         },
          }
       },
       "LambdaExecutionRole":{
@@ -1349,10 +1380,10 @@
                   }
                ]
             },
-                        "ManagedPolicyArns":[
+            "ManagedPolicyArns":[
                "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
                "arn:aws:iam::aws:policy/AmazonSESFullAccess",
-                              "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+               "arn:aws:iam::aws:policy/AmazonS3FullAccess",
                "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
             ],
             "RoleName":"LambdaExecutionRole"
@@ -1418,7 +1449,6 @@
             }
          }
       }
-
    },
    "Outputs":{
       "myVPC":{
