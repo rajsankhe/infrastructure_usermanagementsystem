@@ -113,9 +113,13 @@
          "Type":"String",
          "Default":"prod.rajsankhe.me"
       },
-      "VolumeSzie":{
+      "VolumeSize":{
          "Type":"String",
          "Default":"20"
+      },
+      "SQSQueueName":{
+         "Type":"String",
+         "Default":"dueBillQueue"
       }
    },
    "Resources":{
@@ -423,8 +427,8 @@
                   "IpProtocol":"tcp",
                   "FromPort":8080,
                   "ToPort":8080,
-                  "SourceSecurityGroupId": {
-                     "Fn::GetAtt": [
+                  "SourceSecurityGroupId":{
+                     "Fn::GetAtt":[
                         "loadbalancerSecurityGroup",
                         "GroupId"
                      ]
@@ -444,38 +448,38 @@
             }
          }
       },
-      "loadbalancerSecurityGroup": {
-         "Type": "AWS::EC2::SecurityGroup",
-         "Properties": {
-            "GroupName": "LoadBalancer-Security-Group",
-            "GroupDescription": "Enable HTTPS via port 8080",
-            "VpcId": {
-               "Ref": "myVPC"
+      "loadbalancerSecurityGroup":{
+         "Type":"AWS::EC2::SecurityGroup",
+         "Properties":{
+            "GroupName":"LoadBalancer-Security-Group",
+            "GroupDescription":"Enable HTTPS via port 8080",
+            "VpcId":{
+               "Ref":"myVPC"
             },
-            "SecurityGroupIngress": [
+            "SecurityGroupIngress":[
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 80,
-                  "ToPort": 80,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":80,
+                  "ToPort":80,
+                  "CidrIp":"0.0.0.0/0"
                },
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 443,
-                  "ToPort": 443,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":443,
+                  "ToPort":443,
+                  "CidrIp":"0.0.0.0/0"
                },
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 8080,
-                  "ToPort": 8080,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":8080,
+                  "ToPort":8080,
+                  "CidrIp":"0.0.0.0/0"
                },
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 22,
-                  "ToPort": 22,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":22,
+                  "ToPort":22,
+                  "CidrIp":"0.0.0.0/0"
                }
             ]
          }
@@ -625,7 +629,9 @@
                {
                   "Ref":"AccessAttachmentToS3Bucket"
                },
-               "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+               "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+               "arn:aws:iam::aws:policy/AmazonSNSFullAccess",
+               "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
             ],
             "AssumeRolePolicyDocument":{
                "Version":"2012-10-17",
@@ -976,6 +982,10 @@
                         "sudo echo DBCreationType=update >> /etc/profile.d/envvariable.sh \n",
                         "sudo echo export DBCreationType >> /etc/profile.d/envvariable.sh \n",
                         {
+                           "Fn::Sub":"sudo echo DomainName=${DomainName} >> /etc/profile.d/envvariable.sh \n"
+                        },
+                        "sudo echo export DomainName >> /etc/profile.d/envvariable.sh \n",
+                        {
                            "Fn::Sub":"sudo echo DB_USERNAME=${dbUserName} >> /etc/profile.d/envvariable.sh \n"
                         },
                         "sudo echo export DB_USERNAME >> /etc/profile.d/envvariable.sh \n",
@@ -1037,7 +1047,7 @@
                      "VolumeType":"gp2",
                      "DeleteOnTermination":"true",
                      "VolumeSize":{
-                        "Ref":"VolumeSzie"
+                        "Ref":"VolumeSize"
                      }
                   }
                }
@@ -1130,7 +1140,7 @@
             "MetricName":"CPUUtilization",
             "Namespace":"AWS/EC2",
             "Statistic":"Average",
-            "Period":"60",
+            "Period":"300",
             "EvaluationPeriods":"2",
             "Threshold":"10",
             "AlarmActions":[
@@ -1156,7 +1166,7 @@
             "MetricName":"CPUUtilization",
             "Namespace":"AWS/EC2",
             "Statistic":"Average",
-            "Period":"60",
+            "Period":"300",
             "EvaluationPeriods":"2",
             "Threshold":"5",
             "AlarmActions":[
@@ -1266,7 +1276,22 @@
                }
             ]
          }
+      },
+      "mySQSQueue":{
+         "Type":"AWS::SQS::Queue",
+         "Properties":{
+            "QueueName":{
+               "Ref":"SQSQueueName"
+            },
+            "FifoQueue":"true"
+         }
+      },
+      "mySNSTopic": {
+      "Type" : "AWS::SNS::Topic",
+      "Properties" : {
+         "TopicName" : "dueBillTopic",
       }
+      },
    },
    "Outputs":{
       "myVPC":{
@@ -1291,6 +1316,30 @@
          "Description":"public Subnet 3 ID",
          "Value":{
             "Ref":"myPublicSubnet3"
+         }
+      },
+      "QueueURL":{
+         "Description":"URL of new Amazon SQS Queue",
+         "Value":{
+            "Ref":"mySQSQueue"
+         }
+      },
+      "QueueARN":{
+         "Description":"ARN of new Amazon SQS Queue",
+         "Value":{
+            "Fn::GetAtt":[
+               "mySQSQueue",
+               "Arn"
+            ]
+         }
+      },
+      "QueueName":{
+         "Description":"Name new Amazon SQS Queue",
+         "Value":{
+            "Fn::GetAtt":[
+               "mySQSQueue",
+               "QueueName"
+            ]
          }
       }
    }
