@@ -120,6 +120,10 @@
       "SQSQueueName":{
          "Type":"String",
          "Default":"dueBillQueue"
+      },
+      "SNSTopicName":{
+         "Type":"String",
+         "Default":"dueBillTopic"
       }
    },
    "Resources":{
@@ -1020,6 +1024,18 @@
                               ]
                            ]
                         },
+                        {
+                        "Fn::Join": [
+                           "",
+                           [
+                              "sudo echo export SNS_DUEBIllTOPIC=",
+                              {
+                                 "Ref": "mySNSTopic"
+                              },
+                           ">>/etc/profile.d/envvariable.sh"
+                    ]
+                  ]
+                },
                         "sudo echo export DB_ENDPOINT >> /etc/profile.d/envvariable.sh \n",
                         "sudo echo export WEBAPP_BUCKETNAME >> /etc/profile.d/envvariable.sh \n"
                      ]
@@ -1289,7 +1305,10 @@
       "mySNSTopic": {
       "Type" : "AWS::SNS::Topic",
       "Properties" : {
-         "TopicName" : "dueBillTopic",
+         "TopicName" : 
+         {
+               "Ref":"SNSTopicName"
+         },
       }
       },
    },
