@@ -1029,17 +1029,17 @@
                            ]
                         },
                         {
-                        "Fn::Join": [
-                           "",
-                           [
-                              "sudo echo export SNS_DUEBIllTOPIC=",
-                              {
-                                 "Ref": "mySNSTopic"
-                              },
-                           ">>/etc/profile.d/envvariable.sh"
-                    ]
-                  ]
-                },
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "sudo echo export SNS_DUEBIllTOPIC=",
+                                 {
+                                    "Ref":"mySNSTopic"
+                                 },
+                                 ">>/etc/profile.d/envvariable.sh"
+                              ]
+                           ]
+                        },
                         "sudo echo export DB_ENDPOINT >> /etc/profile.d/envvariable.sh \n",
                         "sudo echo export WEBAPP_BUCKETNAME >> /etc/profile.d/envvariable.sh \n"
                      ]
@@ -1306,15 +1306,119 @@
             "FifoQueue":"true"
          }
       },
-      "mySNSTopic": {
-      "Type" : "AWS::SNS::Topic",
-      "Properties" : {
-         "TopicName" : 
-         {
+      "mySNSTopic":{
+         "Type":"AWS::SNS::Topic",
+         "Properties":{
+            "TopicName":{
                "Ref":"SNSTopicName"
-         },
-      }
+            }
+         }
       },
+      "DueBillsLambdaFunction":{
+         "Type":"AWS::Lambda::Function",
+         "Properties":{
+            "Handler":"password_reset.password_reset",
+            "Role":{
+               "Fn::GetAtt":[
+                  "LambdaExecutionRole",
+                  "Arn"
+               ]
+            },
+            "Code":{
+               "S3Bucket":{
+                  "Ref":"myBucketNameForWebApp"
+               },
+               "S3Key":"cloud-ninja-lambda.zip"
+            },
+            "Runtime":"java8",
+            "FunctionName":"dueBillSendEmail"
+         }
+      },
+      "LambdaExecutionRole":{
+         "Type":"AWS::IAM::Role",
+         "Properties":{
+            "AssumeRolePolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Principal":{
+                        "Service":"lambda.amazonaws.com"
+                     },
+                     "Action":"sts:AssumeRole"
+                  }
+               ]
+            },
+                        "ManagedPolicyArns":[
+               "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+               "arn:aws:iam::aws:policy/AmazonSESFullAccess",
+                              "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+               "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+            ],
+            "RoleName":"LambdaExecutionRole"
+         }
+      },
+      "DynamoDBPolicy":{
+         "Type":"AWS::IAM::Policy",
+         "Properties":{
+            "PolicyName":"DynamoDBPolicy",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Action":[
+                        "dynamodb:BatchGetItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:Query",
+                        "dynamodb:Scan",
+                        "dynamodb:BatchWriteItem",
+                        "dynamodb:PutItem",
+                        "dynamodb:UpdateItem"
+                     ],
+                     "Resource":"*"
+                  }
+               ]
+            },
+            "Roles":[
+               {
+                  "Ref":"LambdaExecutionRole"
+               }
+            ]
+         }
+      },
+      "LambdaResourcePermission":{
+         "Type":"AWS::Lambda::Permission",
+         "Properties":{
+            "FunctionName":{
+               "Ref":"DueBillsLambdaFunction"
+            },
+            "Principal":"sns.amazonaws.com",
+            "Action":"lambda:InvokeFunction",
+            "SourceArn":{
+               "Ref":"mySNSTopic"
+            }
+         }
+      },
+      "LambdaSNSSubscription":{
+         "Type":"AWS::SNS::Subscription",
+         "DependsOn":[
+            "DueBillsLambdaFunction"
+         ],
+         "Properties":{
+            "Endpoint":{
+               "Fn::GetAtt":[
+                  "DueBillsLambdaFunction",
+                  "Arn"
+               ]
+            },
+            "Protocol":"lambda",
+            "TopicArn":{
+               "Ref":"mySNSTopic"
+            }
+         }
+      }
+
    },
    "Outputs":{
       "myVPC":{
