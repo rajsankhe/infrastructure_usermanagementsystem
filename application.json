@@ -119,7 +119,7 @@
       },
       "SQSQueueName":{
          "Type":"String",
-         "Default":"dueBillQueue"
+         "Default":"dueBillQueue.fifo"
       },
       "SNSTopicName":{
          "Type":"String",
@@ -989,6 +989,10 @@
                            "Fn::Sub":"sudo echo DomainName=${DomainName} >> /etc/profile.d/envvariable.sh \n"
                         },
                         "sudo echo export DomainName >> /etc/profile.d/envvariable.sh \n",
+                        {
+                           "Fn::Sub":"sudo echo QueueName=${SQSQueueName} >> /etc/profile.d/envvariable.sh \n"
+                        },
+                        "sudo echo export QueueName >> /etc/profile.d/envvariable.sh \n",
                         {
                            "Fn::Sub":"sudo echo DB_USERNAME=${dbUserName} >> /etc/profile.d/envvariable.sh \n"
                         },
