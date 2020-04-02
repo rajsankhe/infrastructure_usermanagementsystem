@@ -113,9 +113,17 @@
          "Type":"String",
          "Default":"prod.rajsankhe.me"
       },
-      "VolumeSzie":{
+      "VolumeSize":{
          "Type":"String",
          "Default":"20"
+      },
+      "SQSQueueName":{
+         "Type":"String",
+         "Default":"dueBillQueue"
+      },
+      "SNSTopicName":{
+         "Type":"String",
+         "Default":"dueBillTopic"
       }
    },
    "Resources":{
@@ -423,8 +431,8 @@
                   "IpProtocol":"tcp",
                   "FromPort":8080,
                   "ToPort":8080,
-                  "SourceSecurityGroupId": {
-                     "Fn::GetAtt": [
+                  "SourceSecurityGroupId":{
+                     "Fn::GetAtt":[
                         "loadbalancerSecurityGroup",
                         "GroupId"
                      ]
@@ -444,38 +452,38 @@
             }
          }
       },
-      "loadbalancerSecurityGroup": {
-         "Type": "AWS::EC2::SecurityGroup",
-         "Properties": {
-            "GroupName": "LoadBalancer-Security-Group",
-            "GroupDescription": "Enable HTTPS via port 8080",
-            "VpcId": {
-               "Ref": "myVPC"
+      "loadbalancerSecurityGroup":{
+         "Type":"AWS::EC2::SecurityGroup",
+         "Properties":{
+            "GroupName":"LoadBalancer-Security-Group",
+            "GroupDescription":"Enable HTTPS via port 8080",
+            "VpcId":{
+               "Ref":"myVPC"
             },
-            "SecurityGroupIngress": [
+            "SecurityGroupIngress":[
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 80,
-                  "ToPort": 80,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":80,
+                  "ToPort":80,
+                  "CidrIp":"0.0.0.0/0"
                },
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 443,
-                  "ToPort": 443,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":443,
+                  "ToPort":443,
+                  "CidrIp":"0.0.0.0/0"
                },
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 8080,
-                  "ToPort": 8080,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":8080,
+                  "ToPort":8080,
+                  "CidrIp":"0.0.0.0/0"
                },
                {
-                  "IpProtocol": "tcp",
-                  "FromPort": 22,
-                  "ToPort": 22,
-                  "CidrIp": "0.0.0.0/0"
+                  "IpProtocol":"tcp",
+                  "FromPort":22,
+                  "ToPort":22,
+                  "CidrIp":"0.0.0.0/0"
                }
             ]
          }
@@ -625,7 +633,9 @@
                {
                   "Ref":"AccessAttachmentToS3Bucket"
                },
-               "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+               "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+               "arn:aws:iam::aws:policy/AmazonSNSFullAccess",
+               "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
             ],
             "AssumeRolePolicyDocument":{
                "Version":"2012-10-17",
@@ -976,6 +986,14 @@
                         "sudo echo DBCreationType=update >> /etc/profile.d/envvariable.sh \n",
                         "sudo echo export DBCreationType >> /etc/profile.d/envvariable.sh \n",
                         {
+                           "Fn::Sub":"sudo echo DomainName=${DomainName} >> /etc/profile.d/envvariable.sh \n"
+                        },
+                        "sudo echo export DomainName >> /etc/profile.d/envvariable.sh \n",
+                        {
+                           "Fn::Sub":"sudo echo QueueName=${SQSQueueName} >> /etc/profile.d/envvariable.sh \n"
+                        },
+                        "sudo echo export QueueName >> /etc/profile.d/envvariable.sh \n",
+                        {
                            "Fn::Sub":"sudo echo DB_USERNAME=${dbUserName} >> /etc/profile.d/envvariable.sh \n"
                         },
                         "sudo echo export DB_USERNAME >> /etc/profile.d/envvariable.sh \n",
@@ -1010,6 +1028,18 @@
                               ]
                            ]
                         },
+                        {
+                           "Fn::Join":[
+                              "",
+                              [
+                                 "sudo echo export SNS_DUEBIllTOPIC=",
+                                 {
+                                    "Ref":"mySNSTopic"
+                                 },
+                                 ">>/etc/profile.d/envvariable.sh"
+                              ]
+                           ]
+                        },
                         "sudo echo export DB_ENDPOINT >> /etc/profile.d/envvariable.sh \n",
                         "sudo echo export WEBAPP_BUCKETNAME >> /etc/profile.d/envvariable.sh \n"
                      ]
@@ -1037,7 +1067,7 @@
                      "VolumeType":"gp2",
                      "DeleteOnTermination":"true",
                      "VolumeSize":{
-                        "Ref":"VolumeSzie"
+                        "Ref":"VolumeSize"
                      }
                   }
                }
@@ -1130,7 +1160,7 @@
             "MetricName":"CPUUtilization",
             "Namespace":"AWS/EC2",
             "Statistic":"Average",
-            "Period":"60",
+            "Period":"300",
             "EvaluationPeriods":"2",
             "Threshold":"10",
             "AlarmActions":[
@@ -1156,7 +1186,7 @@
             "MetricName":"CPUUtilization",
             "Namespace":"AWS/EC2",
             "Statistic":"Average",
-            "Period":"60",
+            "Period":"300",
             "EvaluationPeriods":"2",
             "Threshold":"5",
             "AlarmActions":[
@@ -1266,6 +1296,213 @@
                }
             ]
          }
+      },
+      "mySQSQueue":{
+         "Type":"AWS::SQS::Queue",
+         "Properties":{
+            "QueueName":{
+               "Ref":"SQSQueueName"
+            }
+         }
+      },
+      "mySNSTopic":{
+         "Type":"AWS::SNS::Topic",
+         "Properties":{
+            "TopicName":{
+               "Ref":"SNSTopicName"
+            }
+         }
+      },
+      "DynamoDB":{
+         "Type":"AWS::DynamoDB::Table",
+         "Properties":{
+            "KeySchema":[
+               {
+                  "AttributeName":"EmailID",
+                  "KeyType":"HASH"
+               }
+            ],
+            "AttributeDefinitions":[
+               {
+                  "AttributeName":"EmailID",
+                  "AttributeType":"S"
+               }
+            ],
+            "ProvisionedThroughput":{
+               "ReadCapacityUnits":"5",
+               "WriteCapacityUnits":"5"
+            },
+            "TableName":"EmailTable",
+            "TimeToLiveSpecification":{
+               "AttributeName":"ExpirationTime",
+               "Enabled":true
+            }
+         }
+      },
+      "DueBillsLambdaFunction":{
+         "Type":"AWS::Lambda::Function",
+         "Properties":{
+            "Handler":"bill_due_mail.billDueMailSender",
+            "Role":{
+               "Fn::GetAtt":[
+                  "LambdaExecutionRole",
+                  "Arn"
+               ]
+            },
+            "Code":{
+               "S3Bucket":{
+                  "Ref":"myBucketNameForWebApp"
+               },
+               "S3Key":"BillDue-lambda.zip"
+            },
+            "Runtime":"python3.7",
+            "FunctionName":"dueBillSendEmail",
+            "Environment":{
+               "Variables":{
+                  "DomainName":{
+                     "Ref":"DomainName"
+                  }
+               }
+            }
+         }
+      },
+      "LambdaExecutionRole":{
+         "Type":"AWS::IAM::Role",
+         "Properties":{
+            "AssumeRolePolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Principal":{
+                        "Service":"lambda.amazonaws.com"
+                     },
+                     "Action":"sts:AssumeRole"
+                  }
+               ]
+            },
+            "ManagedPolicyArns":[
+               "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+               "arn:aws:iam::aws:policy/AmazonSESFullAccess",
+               "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+               "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+            ],
+            "RoleName":"LambdaExecutionRole"
+         }
+      },
+      "DynamoDBPolicy":{
+         "Type":"AWS::IAM::Policy",
+         "Properties":{
+            "PolicyName":"DynamoDBPolicy",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Action":[
+                        "dynamodb:BatchGetItem",
+                        "dynamodb:GetItem",
+                        "dynamodb:Query",
+                        "dynamodb:Scan",
+                        "dynamodb:BatchWriteItem",
+                        "dynamodb:PutItem",
+                        "dynamodb:UpdateItem"
+                     ],
+                     "Resource":"*"
+                  }
+               ]
+            },
+            "Roles":[
+               {
+                  "Ref":"LambdaExecutionRole"
+               }
+            ]
+         }
+      },
+      "LambdaResourcePermission":{
+         "Type":"AWS::Lambda::Permission",
+         "Properties":{
+            "FunctionName":{
+               "Ref":"DueBillsLambdaFunction"
+            },
+            "Principal":"sns.amazonaws.com",
+            "Action":"lambda:InvokeFunction",
+            "SourceArn":{
+               "Ref":"mySNSTopic"
+            }
+         }
+      },
+      "LambdaSNSSubscription":{
+         "Type":"AWS::SNS::Subscription",
+         "DependsOn":[
+            "DueBillsLambdaFunction"
+         ],
+         "Properties":{
+            "Endpoint":{
+               "Fn::GetAtt":[
+                  "DueBillsLambdaFunction",
+                  "Arn"
+               ]
+            },
+            "Protocol":"lambda",
+            "TopicArn":{
+               "Ref":"mySNSTopic"
+            }
+         }
+      },
+      "CirlceCILambdaPolicy":{
+         "Type":"AWS::IAM::Policy",
+         "Properties":{
+            "PolicyName":"CirlceCILambdaPolicy",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Action":[
+                        "lambda:*",
+                        "iam:PassRole"
+                     ],
+                     "Resource":"*"
+                  }
+               ]
+            },
+            "Users":[
+               "circleci"
+            ]
+         }
+      },
+      "CirlceCILambdaS3Policy":{
+         "Type":"AWS::IAM::Policy",
+         "Properties":{
+            "PolicyName":"CirlceCILambdaS3Policy",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Action":[
+                        "s3:GetObject"
+                     ],
+                     "Resource":{
+                        "Fn::Join":[
+                           "",
+                           [
+                              "arn:aws:s3:::",
+                              {
+                                 "Ref":"myBucketNameForWebApp"
+                              },
+                              "/*"
+                           ]
+                        ]
+                     }
+                  }
+               ]
+            },
+            "Users":[
+               "circleci"
+            ]
+         }
       }
    },
    "Outputs":{
@@ -1291,6 +1528,30 @@
          "Description":"public Subnet 3 ID",
          "Value":{
             "Ref":"myPublicSubnet3"
+         }
+      },
+      "QueueURL":{
+         "Description":"URL of new Amazon SQS Queue",
+         "Value":{
+            "Ref":"mySQSQueue"
+         }
+      },
+      "QueueARN":{
+         "Description":"ARN of new Amazon SQS Queue",
+         "Value":{
+            "Fn::GetAtt":[
+               "mySQSQueue",
+               "Arn"
+            ]
+         }
+      },
+      "QueueName":{
+         "Description":"Name new Amazon SQS Queue",
+         "Value":{
+            "Fn::GetAtt":[
+               "mySQSQueue",
+               "QueueName"
+            ]
          }
       }
    }
