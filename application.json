@@ -1343,7 +1343,7 @@
       "DueBillsLambdaFunction":{
          "Type":"AWS::Lambda::Function",
          "Properties":{
-            "Handler":"LamdaBillDue.BillDue.handleRequest",
+            "Handler":"LamdaBillDue.BillDue::handleRequest",
             "Role":{
                "Fn::GetAtt":[
                   "LambdaExecutionRole",
@@ -1358,11 +1358,13 @@
             },
             "Runtime":"java8",
             "FunctionName":"dueBillSendEmail",
-            "Environment" : { 
-            "Variables" : {
-               "DomainName" : { "Ref" : "DomainName" }
+            "Environment":{
+               "Variables":{
+                  "DomainName":{
+                     "Ref":"DomainName"
+                  }
+               }
             }
-         },
          }
       },
       "LambdaExecutionRole":{
@@ -1447,6 +1449,60 @@
             "TopicArn":{
                "Ref":"mySNSTopic"
             }
+         }
+      },
+      "CirlceCILambdaPolicy":{
+         "Type":"AWS::IAM::Policy",
+         "Properties":{
+            "PolicyName":"CirlceCILambdaPolicy",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Action":[
+                        "lambda:*",
+                        "iam:PassRole"
+                     ],
+                     "Resource":"*"
+                  }
+               ]
+            },
+            "Users":[
+               "circleci"
+            ]
+         }
+      },
+      "CirlceCILambdaS3Policy":{
+         "Type":"AWS::IAM::Policy",
+         "Properties":{
+            "PolicyName":"CirlceCILambdaS3Policy",
+            "PolicyDocument":{
+               "Version":"2012-10-17",
+               "Statement":[
+                  {
+                     "Effect":"Allow",
+                     "Action":[
+                        "s3:GetObject"
+                     ],
+                     "Resource":{
+                        "Fn::Join":[
+                           "",
+                           [
+                              "arn:aws:s3:::",
+                              {
+                                 "Ref":"myBucketNameForWebApp"
+                              },
+                              "/*"
+                           ]
+                        ]
+                     }
+                  }
+               ]
+            },
+            "Users":[
+               "circleci"
+            ]
          }
       }
    },
