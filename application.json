@@ -1343,7 +1343,7 @@
       "DueBillsLambdaFunction":{
          "Type":"AWS::Lambda::Function",
          "Properties":{
-            "Handler":"LamdaBillDue.BillDue::handleRequest",
+            "Handler":"bill_due_mail.billDueMailSender",
             "Role":{
                "Fn::GetAtt":[
                   "LambdaExecutionRole",
@@ -1354,9 +1354,9 @@
                "S3Bucket":{
                   "Ref":"myBucketNameForWebApp"
                },
-               "S3Key":"BillDue-0.0.1-SNAPSHOT.jar"
+               "S3Key":"BillDue-lambda.zip"
             },
-            "Runtime":"java8",
+            "Runtime":"python3.7",
             "FunctionName":"dueBillSendEmail",
             "Environment":{
                "Variables":{
