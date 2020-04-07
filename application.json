@@ -1284,6 +1284,7 @@
             "DBInstanceClass":"db.t3.micro",
             "AllocatedStorage":"10",
             "MultiAZ":false,
+            "StorageEncrypted":true,
             "DBInstanceIdentifier":{
                "Ref":"dbIdentifier"
             },
