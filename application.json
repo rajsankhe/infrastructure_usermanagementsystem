@@ -1282,6 +1282,9 @@
             "DBInstanceIdentifier":{
                "Ref":"dbIdentifier"
             },
+            "DbParameterGroupName": {
+               "Ref": "DBParameterGroup"
+            },
             "MasterUsername":{
                "Ref":"dbUserName"
             },
@@ -1344,6 +1347,22 @@
             }
          }
       },
+      "DBParameterGroup": {
+       "Type": "AWS::RDS::DBParameterGroup",
+       "Properties": {
+       "Description": "DB parameter group to enable SSL",
+       "Family": "postgres10",
+       "Parameters": {
+         "rds.force_ssl": "1"
+        },
+       "Tags": [
+         {
+         "Key": "Name",
+         "Value": "dbParameterGroup"
+        }
+       ]
+      }
+     },
       "DueBillsLambdaFunction":{
          "Type":"AWS::Lambda::Function",
          "Properties":{
