@@ -426,12 +426,6 @@
             "SecurityGroupIngress":[
                {
                   "IpProtocol":"tcp",
-                  "FromPort":22,
-                  "ToPort":22,
-                  "CidrIp":"0.0.0.0/0"
-               },
-               {
-                  "IpProtocol":"tcp",
                   "FromPort":8080,
                   "ToPort":8080,
                   "SourceSecurityGroupId":{
@@ -1288,6 +1282,9 @@
             "DBInstanceIdentifier":{
                "Ref":"dbIdentifier"
             },
+            "DBParameterGroupName": {
+               "Ref": "DBParameterGroup"
+            },
             "MasterUsername":{
                "Ref":"dbUserName"
             },
@@ -1350,6 +1347,22 @@
             }
          }
       },
+      "DBParameterGroup": {
+       "Type": "AWS::RDS::DBParameterGroup",
+       "Properties": {
+       "Description": "DB parameter group to enable SSL",
+       "Family": "postgres10",
+       "Parameters": {
+         "rds.force_ssl": "1"
+        },
+       "Tags": [
+         {
+         "Key": "Name",
+         "Value": "dbParameterGroup"
+        }
+       ]
+      }
+     },
       "DueBillsLambdaFunction":{
          "Type":"AWS::Lambda::Function",
          "Properties":{
