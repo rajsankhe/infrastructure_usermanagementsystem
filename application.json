@@ -1282,7 +1282,7 @@
             "DBInstanceIdentifier":{
                "Ref":"dbIdentifier"
             },
-            "DbParameterGroupName": {
+            "DBParameterGroupName": {
                "Ref": "DBParameterGroup"
             },
             "MasterUsername":{
